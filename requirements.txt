@@ -1,0 +1,6 @@
+streamlit
+geopandas
+earthengine-api
+geemap
+numpy
+pandas
