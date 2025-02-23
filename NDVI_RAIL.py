@@ -30,14 +30,29 @@ with st.sidebar:
 # ee.Initialize(credentials)
 
 
+# from google.oauth2 import service_account
+#
+# # دریافت کلید سرویس از متغیر محیطی
+# service_account_info = json.loads(os.getenv("GEE_SERVICE_ACCOUNT"))
+# credentials = service_account.Credentials.from_service_account_info(service_account_info)
+#
+# # مقداردهی اولیه Google Earth Engine
+# ee.Initialize(credentials)
+
+from google.auth import exceptions
 from google.oauth2 import service_account
 
-# دریافت کلید سرویس از متغیر محیطی
-service_account_info = json.loads(os.getenv("GEE_SERVICE_ACCOUNT"))
-credentials = service_account.Credentials.from_service_account_info(service_account_info)
+# دریافت اطلاعات کلید سرویس از متغیر محیطی
+key_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+credentials_info = json.loads(key_json)
 
-# مقداردهی اولیه Google Earth Engine
-ee.Initialize(credentials)
+# استفاده از اعتبارنامه‌ها
+credentials = service_account.Credentials.from_service_account_info(credentials_info, scopes=["https://www.googleapis.com/auth/earthengine", "https://www.googleapis.com/auth/cloud-platform"])
+
+try:
+    ee.Initialize(credentials)
+except exceptions.RefreshError as e:
+    print(f"Error initializing: {e}")
 
 # آپلود فایل ZIP شامل Shapefile
 uploaded_file = st.file_uploader("آپلود یک شیپ فایل فشرده ‌شده (.zip)", type=["zip"])
