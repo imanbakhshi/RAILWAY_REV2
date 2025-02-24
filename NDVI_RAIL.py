@@ -490,20 +490,26 @@ if uploaded_file:
 
 
                 if "region" in st.session_state and "ndvi" in st.session_state and "mndwi" in st.session_state:
-                    if st.button("Download All Images"):
-                        temp_dir = tempfile.gettempdir()
+                    # مسیر ذخیره فایل‌های موقت
+                    temp_dir = tempfile.gettempdir()
 
-                        ndvi_path = os.path.join(temp_dir, "Crop-Detection.tif")
-                        mndwi_path = os.path.join(temp_dir, "Water-Body.tif")
+                    ndvi_path = os.path.join(temp_dir, "Crop-Detection.tif")
+                    mndwi_path = os.path.join(temp_dir, "Water-Body.tif")
 
-                        geemap.ee_export_image(ndvi, filename=ndvi_path, scale=scale, region=region.geometry().bounds())
-                        geemap.ee_export_image(mndwi, filename=mndwi_path, scale=scale,
-                                               region=region.geometry().bounds())
+                    # ذخیره تصاویر
+                    geemap.ee_export_image(ndvi, filename=ndvi_path, scale=scale, region=region.geometry().bounds())
+                    geemap.ee_export_image(mndwi, filename=mndwi_path, scale=scale, region=region.geometry().bounds())
 
-                        st.success("Images are ready for download.")
+                    # نمایش لینک‌های دانلود
+                    st.success("تصاویر پردازش شدند و آماده‌ی دانلود هستند.")
 
-                        st.markdown(f"[Download NDVI](app/{ndvi_path})", unsafe_allow_html=True)
-                        st.markdown(f"[Download MNDWI](app/{mndwi_path})", unsafe_allow_html=True)
+                    with open(ndvi_path, "rb") as file:
+                        st.download_button(label="Download NDVI", data=file, file_name="Crop-Detection.tif",
+                                           mime="image/tiff")
+
+                    with open(mndwi_path, "rb") as file:
+                        st.download_button(label="Download MNDWI", data=file, file_name="Water-Body.tif",
+                                           mime="image/tiff")
 
     except Exception as e:
         st.error(f"خطا در پردازش Shapefile یا محاسبه شاخص‌ها: {str(e)}")
