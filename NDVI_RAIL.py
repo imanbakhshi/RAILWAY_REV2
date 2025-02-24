@@ -1,48 +1,44 @@
-import streamlit as st
-import geopandas as gpd
-import ee
-import json
-import os
-import tempfile
-import geemap.foliumap as geemap
-from io import BytesIO
-from datetime import datetime
-from io import StringIO
-from PIL import Image
-from google.oauth2 import service_account
-
-import streamlit as st
-from PIL import Image
-
-# بارگذاری تصویر
-image = Image.open("ABK.jpg")  # مسیر تصویر محلی خود را وارد کنید
-
-# streamlisاستفاده از Sidebar برای نمایش تصویر در بالای آن
-with st.sidebar:
-    st.image(image, use_container_width=True)
-    st.markdown('<h2 style="color: green;">شرکت مهندسین مشاور آسمان برج کارون</h2>', unsafe_allow_html=True)
-
-# مقداردهی اولیه GEE
-
-# # مقداردهی اولیه GEE
-# service_account = "iman.e.bakhshipoor@gmail.com"
-# credentials = ee.ServiceAccountCredentials(service_account, "IMAN_GEE.json")
-# ee.Initialize(credentials)
-
-
+# import streamlit as st
+# import geopandas as gpd
+# import ee
+# import json
+# import os
+# import tempfile
+# import geemap.foliumap as geemap
+# from io import BytesIO
+# from datetime import datetime
+# from io import StringIO
+# from PIL import Image
 # from google.oauth2 import service_account
 #
-# # دریافت کلید سرویس از متغیر محیطی
-# service_account_info = json.loads(os.getenv("GEE_SERVICE_ACCOUNT"))
-# credentials = service_account.Credentials.from_service_account_info(service_account_info)
+# import streamlit as st
+# from PIL import Image
 #
-# # مقداردهی اولیه Google Earth Engine
-# ee.Initialize(credentials)
-
-######################################################
-
-
-
+# # بارگذاری تصویر
+# image = Image.open("ABK.jpg")  # مسیر تصویر محلی خود را وارد کنید
+#
+# # streamlisاستفاده از Sidebar برای نمایش تصویر در بالای آن
+# with st.sidebar:
+#     st.image(image, use_container_width=True)
+#     st.markdown('<h2 style="color: green;">شرکت مهندسین مشاور آسمان برج کارون</h2>', unsafe_allow_html=True)
+#
+# # مقداردهی اولیه GEE
+#
+# # # مقداردهی اولیه GEE
+# # service_account = "iman.e.bakhshipoor@gmail.com"
+# # credentials = ee.ServiceAccountCredentials(service_account, "IMAN_GEE.json")
+# # ee.Initialize(credentials)
+#
+#
+# # from google.oauth2 import service_account
+# #
+# # # دریافت کلید سرویس از متغیر محیطی
+# # service_account_info = json.loads(os.getenv("GEE_SERVICE_ACCOUNT"))
+# # credentials = service_account.Credentials.from_service_account_info(service_account_info)
+# #
+# # # مقداردهی اولیه Google Earth Engine
+# # ee.Initialize(credentials)
+#
 # from google.auth import exceptions
 # from google.oauth2 import service_account
 #
@@ -160,18 +156,11 @@ with st.sidebar:
     st.image(image, use_container_width=True)
     st.markdown('<h2 style="color: green;">شرکت مهندسین مشاور آسمان برج کارون</h2>', unsafe_allow_html=True)
 
-# مقداردهی اولیه Google Earth Engine
-service_account_info = json.loads(st.secrets["google"]["credentials"])
-credentials = service_account.Credentials.from_service_account_info(
-    service_account_info,
-    scopes=["https://www.googleapis.com/auth/earthengine", "https://www.googleapis.com/auth/cloud-platform"]
-)
 
-try:
-    ee.Initialize(credentials)
-    st.success("Initialized Successfully! ✅")
-except Exception as e:
-    st.error(f"Initialization Failed: {e}")
+
+
+
+
 
 
 
@@ -190,22 +179,26 @@ try:
 except exceptions.RefreshError as e:
     print(f"Error initializing: {e}")
 
+
+
+
+
+
+
+
+
+
+
 # آپلود فایل ZIP شامل Shapefile
 uploaded_file = st.file_uploader("آپلود یک شیپ فایل فشرده ‌شده (.zip)", type=["zip"])
 
-#
-#
-#
-# # آپلود فایل ZIP شامل Shapefile
-# uploaded_file = st.file_uploader("آپلود یک شیپ فایل فشرده ‌شده (.zip)", type=["zip"])
-#
-# # استفاده از Sidebar برای انتخاب تاریخ و مقیاس
-# with st.sidebar:
-#     start_date = st.date_input("تاریخ شروع", value=datetime(2025, 1, 1), min_value=datetime(2000, 1, 1),
-#                                max_value=datetime.today())
-#     end_date = st.date_input("تاریخ پایان", value=datetime(2025, 2, 15), min_value=datetime(2000, 1, 1),
-#                              max_value=datetime.today())
-#     scale = st.number_input("مقیاس (Scale)", min_value=10, max_value=100, value=10, step=10)
+# استفاده از Sidebar برای انتخاب تاریخ و مقیاس
+with st.sidebar:
+    start_date = st.date_input("تاریخ شروع", value=datetime(2025, 1, 1), min_value=datetime(2000, 1, 1),
+                               max_value=datetime.today())
+    end_date = st.date_input("تاریخ پایان", value=datetime(2025, 2, 15), min_value=datetime(2000, 1, 1),
+                             max_value=datetime.today())
+    scale = st.number_input("مقیاس (Scale)", min_value=10, max_value=100, value=10, step=10)
 
 # تابع دانلود تصویر (باید قبل از صدا زدن تعریف شود)
 def download_image(image, filename, region, scale):
