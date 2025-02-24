@@ -613,7 +613,7 @@ if uploaded_file:
             # Map.addLayer(savi, {'min': 0, 'max': 1, 'palette': ['white', 'yellow', 'green']}, "SAVI", False)
             Map.addLayer(mndwi, {'min': -1, 'max': 1, 'palette': ['red', 'blue']}, "Water Body", False)
             # Map.addLayer(gcvi, {'palette': ['#ffffff', '#ffff00', '#008000'], 'min': 0.347, 'max': 3.704}, "GCVI",
-                         False)
+            #              False)
             Map.addLayer(image, {'min': 0, 'max': 3000, 'bands': ["B4", "B3", "B2"]}, "True Color", True)
             Map.addLayer(region, {}, " Shapefile")
 
