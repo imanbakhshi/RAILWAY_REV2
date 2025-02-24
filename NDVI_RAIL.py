@@ -387,7 +387,6 @@
 
 
 
-
 import streamlit as st
 import geopandas as gpd
 import ee
@@ -408,6 +407,9 @@ with st.sidebar:
     st.image(image, use_container_width=True)
     st.markdown('<h2 style="color: green;">شرکت مهندسین مشاور آسمان برج کارون</h2>', unsafe_allow_html=True)
 
+from google.auth import exceptions
+from google.oauth2 import service_account
+
 # دریافت اطلاعات کلید سرویس از متغیر محیطی
 key_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
 credentials_info = json.loads(key_json)
@@ -417,8 +419,8 @@ credentials = service_account.Credentials.from_service_account_info(credentials_
 
 try:
     ee.Initialize(credentials)
-except Exception as e:
-    st.error(f"Error initializing Earth Engine: {e}")
+except exceptions.RefreshError as e:
+    print(f"Error initializing: {e}")
 
 # آپلود فایل ZIP شامل Shapefile
 uploaded_file = st.file_uploader("آپلود یک شیپ فایل فشرده ‌شده (.zip)", type=["zip"])
@@ -429,14 +431,14 @@ with st.sidebar:
     end_date = st.date_input("تاریخ پایان", value=datetime(2025, 2, 15), min_value=datetime(2000, 1, 1), max_value=datetime.today())
     scale = st.number_input("مقیاس (Scale)", min_value=10, max_value=100, value=10, step=10)
 
-# تابع دانلود چند تصویر به طور همزمان
-def download_images(images, filenames, region, scale):
-    temp_dir = tempfile.gettempdir()
-    for img, fname in zip(images, filenames):
-        temp_path = os.path.join(temp_dir, fname)
-        geemap.ee_export_image(img, filename=temp_path, scale=scale, region=region.geometry().bounds())
+# تابع دانلود تصویر
+def download_image(image, filename, region, scale):
+    with st.spinner(f"در حال تولید {filename}... ⏳"):
+        temp_dir = tempfile.gettempdir()
+        temp_path = os.path.join(temp_dir, filename)
+        geemap.ee_export_image(image, filename=temp_path, scale=scale, region=region.geometry().bounds())
         with open(temp_path, "rb") as f:
-            st.download_button(label=f"Download {fname}", data=f, file_name=fname, mime="image/tiff")
+            return f.read()
 
 if uploaded_file:
     try:
@@ -464,18 +466,26 @@ if uploaded_file:
             ndvi = image.normalizedDifference(["B8", "B4"]).rename("NDVI")
             mndwi = image.normalizedDifference(["B3", "B11"]).rename("MNDWI")
 
-            Map = geemap.Map(center=[gdf.geometry.centroid.y.mean(), gdf.geometry.centroid.x.mean()], zoom=8)
-            Map.add_basemap("OpenStreetMap")
-            Map.add_basemap("HYBRID")
-            Map.addLayer(ndvi, {'min': 0, 'max': 1, 'palette': ['white', 'green']}, "Crop Detection", False)
-            Map.addLayer(mndwi, {'min': -1, 'max': 1, 'palette': ['red', 'blue']}, "Water Body", False)
-            Map.addLayer(image, {'min': 0, 'max': 3000, 'bands': ["B4", "B3", "B2"]}, "True Color", True)
-            Map.addLayer(region, {}, "Shapefile")
+            composite = ndvi.addBands([mndwi])
 
-            Map.to_streamlit(height=600)
+            # نمایش تصاویر روی نقشه
+            with st.container():
+                Map = geemap.Map(center=[gdf.geometry.centroid.y.mean(), gdf.geometry.centroid.x.mean()], zoom=8)
+                Map.add_basemap("OpenStreetMap")
+                Map.add_basemap("HYBRID")
+                Map.addLayer(ndvi, {'min': 0, 'max': 1, 'palette': ['white', 'green']}, "Crop Detection", False)
+                Map.addLayer(mndwi, {'min': -1, 'max': 1, 'palette': ['red', 'blue']}, "Water Body", False)
+                Map.addLayer(image, {'min': 0, 'max': 3000, 'bands': ["B4", "B3", "B2"]}, "True Color", True)
+                Map.addLayer(region, {}, "Shapefile")
+                Map.to_streamlit(height=600)
 
-            # دکمه دانلود همه تصاویر
-            if st.button("Download All Images"):
-                download_images([ndvi, mndwi], ["Crop-Detection.tif", "Water-Body.tif"], region, scale)
+            # بلاک جداگانه برای دانلود تصاویر
+            with st.container():
+                st.subheader("Download Images")
+                if st.button("Download All Images"):
+                    ndvi_data = download_image(ndvi, "Crop-Detection.tif", region, scale)
+                    mndwi_data = download_image(mndwi, "Water-Body.tif", region, scale)
+                    st.download_button(label="Download NDVI", data=ndvi_data, file_name="Crop-Detection.tif", mime="image/tiff")
+                    st.download_button(label="Download MNDWI", data=mndwi_data, file_name="Water-Body.tif", mime="image/tiff")
     except Exception as e:
         st.error(f"خطا در پردازش Shapefile یا محاسبه شاخص‌ها: {str(e)}")
