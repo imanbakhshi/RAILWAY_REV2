@@ -609,10 +609,10 @@ if uploaded_file:
             Map = geemap.Map(center=[gdf.geometry.centroid.y.mean(), gdf.geometry.centroid.x.mean()], zoom=8)
             Map.add_basemap("OpenStreetMap")
             Map.add_basemap("HYBRID")
-            Map.addLayer(ndvi, {'min': 0, 'max': 1, 'palette': ['white', 'green']}, "NDVI", False)
-            Map.addLayer(savi, {'min': 0, 'max': 1, 'palette': ['white', 'yellow', 'green']}, "SAVI", False)
-            Map.addLayer(mndwi, {'min': -1, 'max': 1, 'palette': ['red', 'blue']}, "MNDWI", False)
-            Map.addLayer(gcvi, {'palette': ['#ffffff', '#ffff00', '#008000'], 'min': 0.347, 'max': 3.704}, "GCVI",
+            Map.addLayer(ndvi, {'min': 0, 'max': 1, 'palette': ['white', 'green']}, "Crop Detect", False)
+            # Map.addLayer(savi, {'min': 0, 'max': 1, 'palette': ['white', 'yellow', 'green']}, "SAVI", False)
+            Map.addLayer(mndwi, {'min': -1, 'max': 1, 'palette': ['red', 'blue']}, "Water Body", False)
+            # Map.addLayer(gcvi, {'palette': ['#ffffff', '#ffff00', '#008000'], 'min': 0.347, 'max': 3.704}, "GCVI",
                          False)
             Map.addLayer(image, {'min': 0, 'max': 3000, 'bands': ["B4", "B3", "B2"]}, "True Color", True)
             Map.addLayer(region, {}, " Shapefile")
@@ -620,20 +620,20 @@ if uploaded_file:
             Map.to_streamlit(height=600)
 
 
-            def download_image(image, filename):
-                with st.spinner(f"در حال تولید {filename}... ⏳"):
-                    temp_dir = tempfile.gettempdir()
-                    temp_path = os.path.join(temp_dir, filename)
-                    geemap.ee_export_image(image, filename=temp_path, scale=scale, region=region.geometry().bounds())
-                    with open(temp_path, "rb") as f:
-                        st.download_button(label=f"download  {filename}", data=f, file_name=filename, mime="image/tiff")
-
-
-            st.subheader("download image")
-            download_image(ndvi, "ndvi_image.tif")
-            download_image(savi, "savi_image.tif")
-            download_image(mndwi, "mndwi_image.tif")
-            download_image(gcvi, "gcvi_image.tif")
+            # def download_image(image, filename):
+            #     with st.spinner(f"در حال تولید {filename}... ⏳"):
+            #         temp_dir = tempfile.gettempdir()
+            #         temp_path = os.path.join(temp_dir, filename)
+            #         geemap.ee_export_image(image, filename=temp_path, scale=scale, region=region.geometry().bounds())
+            #         with open(temp_path, "rb") as f:
+            #             st.download_button(label=f"download  {filename}", data=f, file_name=filename, mime="image/tiff")
+            #
+            #
+            # st.subheader("download image")
+            # download_image(ndvi, "ndvi_image.tif")
+            # # download_image(savi, "savi_image.tif")
+            # download_image(mndwi, "mndwi_image.tif")
+            # # download_image(gcvi, "gcvi_image.tif")
     except Exception as e:
         st.error(f"خطا در پردازش Shapefile یا محاسبه شاخص‌ها: {str(e)}")
 
