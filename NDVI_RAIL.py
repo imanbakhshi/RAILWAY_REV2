@@ -399,83 +399,106 @@ from PIL import Image
 from google.oauth2 import service_account
 
 # بارگذاری تصویر
-image = Image.open("ABK.jpg")
+image = Image.open("ABK.jpg")  # مسیر تصویر محلی خود را وارد کنید
 
-# نمایش تصویر در نوار کناری
+# streamlit استفاده از Sidebar برای نمایش تصویر در بالای آن
 with st.sidebar:
     st.image(image, use_container_width=True)
     st.markdown('<h2 style="color: green;">شرکت مهندسین مشاور آسمان برج کارون</h2>', unsafe_allow_html=True)
 
-# احراز هویت Google Earth Engine
+# دریافت اطلاعات کلید سرویس از متغیر محیطی
 key_json = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
 credentials_info = json.loads(key_json)
+
+# استفاده از اعتبارنامه‌ها
 credentials = service_account.Credentials.from_service_account_info(credentials_info, scopes=[
     "https://www.googleapis.com/auth/earthengine", "https://www.googleapis.com/auth/cloud-platform"])
+
 try:
     ee.Initialize(credentials)
 except Exception as e:
-    st.error(f"خطا در احراز هویت: {e}")
+    st.error(f"Error initializing Earth Engine: {e}")
 
 # آپلود فایل ZIP شامل Shapefile
 uploaded_file = st.file_uploader("آپلود یک شیپ فایل فشرده ‌شده (.zip)", type=["zip"])
 
-# انتخاب تاریخ و مقیاس
+# استفاده از Sidebar برای انتخاب تاریخ و مقیاس
 with st.sidebar:
-    start_date = st.date_input("تاریخ شروع", value=datetime(2025, 1, 1))
-    end_date = st.date_input("تاریخ پایان", value=datetime(2025, 2, 15))
+    start_date = st.date_input("تاریخ شروع", value=datetime(2025, 1, 1), min_value=datetime(2000, 1, 1),
+                               max_value=datetime.today())
+    end_date = st.date_input("تاریخ پایان", value=datetime(2025, 2, 15), min_value=datetime(2000, 1, 1),
+                             max_value=datetime.today())
     scale = st.number_input("مقیاس (Scale)", min_value=10, max_value=100, value=10, step=10)
 
-# پردازش و نمایش تصاویر
 if uploaded_file:
     try:
         gdf = gpd.read_file(BytesIO(uploaded_file.getvalue()))
         if gdf.crs is not None and gdf.crs.to_epsg() != 4326:
             gdf = gdf.to_crs(epsg=4326)
+        st.write("CRS Shapefile (converted):", gdf.crs)
+        st.write("Shapefile:", gdf.geometry)
 
-        st.write("Shapefile CRS:", gdf.crs)
-        region = ee.FeatureCollection([ee.Feature(json.loads(gdf.to_json())["features"][0])])
+        geojson = json.loads(gdf.to_json())
+        features = [ee.Feature(feature) for feature in geojson["features"]]
+        region = ee.FeatureCollection(features)
 
         start_date_ee = ee.Date.fromYMD(start_date.year, start_date.month, start_date.day)
         end_date_ee = ee.Date.fromYMD(end_date.year, end_date.month, end_date.day)
 
-        image = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED").filterBounds(region).filterDate(start_date_ee,
-                                                                                                  end_date_ee).median().clip(
-            region)
+        image = ee.ImageCollection("COPERNICUS/S2_SR_HARMONIZED") \
+            .filterBounds(region) \
+            .filterDate(start_date_ee, end_date_ee).median() \
+            .clip(region)
 
         if image is None:
-            st.error("هیچ تصویری یافت نشد.")
+            st.error("هیچ تصویری از Sentinel-2 برای این منطقه و بازه زمانی یافت نشد.")
         else:
             ndvi = image.normalizedDifference(["B8", "B4"]).rename("NDVI")
             mndwi = image.normalizedDifference(["B3", "B11"]).rename("MNDWI")
+            composite = ndvi.addBands([mndwi])
 
-            # ذخیره تصاویر در session_state برای جلوگیری از پردازش مجدد
+            # ذخیره متغیرها در Session State
+            st.session_state["region"] = region
             st.session_state["ndvi"] = ndvi
             st.session_state["mndwi"] = mndwi
-            st.session_state["region"] = region
+            st.session_state["scale"] = scale
 
-            Map = geemap.Map(center=[gdf.geometry.centroid.y.mean(), gdf.geometry.centroid.x.mean()], zoom=8)
-            Map.add_basemap("OpenStreetMap")
-            Map.addLayer(ndvi, {'min': 0, 'max': 1, 'palette': ['white', 'green']}, "Crop Detection")
-            Map.addLayer(mndwi, {'min': -1, 'max': 1, 'palette': ['red', 'blue']}, "Water Body")
-            Map.addLayer(image, {'min': 0, 'max': 3000, 'bands': ["B4", "B3", "B2"]}, "True Color")
-            Map.addLayer(region, {}, "Shapefile")
-            Map.to_streamlit(height=600)
+            # نمایش تصاویر روی نقشه
+            with st.container():
+                Map = geemap.Map(center=[gdf.geometry.centroid.y.mean(), gdf.geometry.centroid.x.mean()], zoom=8)
+                Map.add_basemap("OpenStreetMap")
+                Map.add_basemap("HYBRID")
+                Map.addLayer(ndvi, {'min': 0, 'max': 1, 'palette': ['white', 'green']}, "Crop Detection", False)
+                Map.addLayer(mndwi, {'min': -1, 'max': 1, 'palette': ['red', 'blue']}, "Water Body", False)
+                Map.addLayer(image, {'min': 0, 'max': 3000, 'bands': ["B4", "B3", "B2"]}, "True Color", True)
+                Map.addLayer(region, {}, "Shapefile")
+                Map.to_streamlit(height=600)
+
+            # بلاک جداگانه برای دانلود تصاویر
+            with st.container():
+                st.subheader("Download Images")
+
+
+                def download_image(image, filename, region, scale):
+                    with st.spinner(f"در حال تولید {filename}... ⏳"):
+                        temp_dir = tempfile.gettempdir()
+                        temp_path = os.path.join(temp_dir, filename)
+                        geemap.ee_export_image(image, filename=temp_path, scale=scale,
+                                               region=region.geometry().bounds())
+                        with open(temp_path, "rb") as f:
+                            return f.read()
+
+
+                if "region" in st.session_state and "ndvi" in st.session_state and "mndwi" in st.session_state:
+                    if st.button("Download All Images"):
+                        ndvi_data = download_image(st.session_state["ndvi"], "Crop-Detection.tif",
+                                                   st.session_state["region"], st.session_state["scale"])
+                        mndwi_data = download_image(st.session_state["mndwi"], "Water-Body.tif",
+                                                    st.session_state["region"], st.session_state["scale"])
+
+                        st.download_button(label="Download NDVI", data=ndvi_data, file_name="Crop-Detection.tif",
+                                           mime="image/tiff")
+                        st.download_button(label="Download MNDWI", data=mndwi_data, file_name="Water-Body.tif",
+                                           mime="image/tiff")
     except Exception as e:
-        st.error(f"خطا در پردازش Shapefile: {e}")
-
-
-# تابع دانلود تصویر
-def download_image(image, filename, region, scale):
-    with st.spinner(f"در حال تولید {filename}..."):
-        temp_dir = tempfile.gettempdir()
-        temp_path = os.path.join(temp_dir, filename)
-        geemap.ee_export_image(image, filename=temp_path, scale=scale, region=region.geometry().bounds())
-        with open(temp_path, "rb") as f:
-            st.download_button(label=f"Download {filename}", data=f, file_name=filename, mime="image/tiff")
-
-
-# دکمه دانلود تصاویر بعد از نمایش
-if "ndvi" in st.session_state and "mndwi" in st.session_state and "region" in st.session_state:
-    if st.button("Download All Images"):
-        download_image(st.session_state["ndvi"], "Crop-Detection.tif", st.session_state["region"], scale)
-        download_image(st.session_state["mndwi"], "Water-Body.tif", st.session_state["region"], scale)
+        st.error(f"خطا در پردازش Shapefile یا محاسبه شاخص‌ها: {str(e)}")
